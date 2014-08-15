@@ -1,6 +1,6 @@
 
 class DiceGame(object):
-    def __init__(self, nlocoind_account_name, payodds, house_edge):
+    def __init__(self, nlocoind_account_name, payodds, house_edge, receive_address):
         """ Sets up a new dice game
         :param nlocoind_account_name: receiving address for game in nlocoind
         :param payodds: odds to payout i.e 2:1 would be 2, 3:2 would be 1.5
@@ -12,3 +12,4 @@ class DiceGame(object):
         self.house_edge = float(house_edge)
 
         self.rollodds = (1. / payodds) - (house_edge/100.)
+        self.receive_address = receive_address

@@ -26,7 +26,7 @@ if 0:  # on first run create the tables
 
 # Use RPC to Connect to nlocoind
 rpcaccess = AuthServiceProxy("http://{}:{}@{}:{}".format(rpcuser, rpcpass, rpcip, rpcport))
-print rpcaccess.getinfo()  # test
+# print rpcaccess.getinfo()  # test
 
     # TODO add if failed to connect statement
 
@@ -35,12 +35,10 @@ print rpcaccess.getinfo()  # test
 for game in dicegames:
     number_of_transactions = 20
     confirmations = 1
-    print game.account, number_of_transactions, confirmations
 
-    print rpcaccess.listreceivedbyaccount(0, True)
-    transactions = rpcaccess.listreceivedbyaccount(game.account, number_of_transactions, confirmations)
+    transactions = rpcaccess.listtransactions(game.account, number_of_transactions, 0)
 
-    print transactions  # EODN this is failing with JSON error - need to get it to output then parse the JSON
+    print '->', transactions
 
 # TODO check transactions (and that none are missed)
 
