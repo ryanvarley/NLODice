@@ -40,75 +40,75 @@ try:
     dice = random.SystemRandom()
 
     # Per address / odds
-    for game in dicegames:
-        startfrom = 0  # TODO need a way of only getting unprocessed transactions perhaps keeping a start from counter
-        # and processing x per minute
-        number_of_tranasactions = 20
+    game = dicegames[0]  # needs to be replaced by changing game per transaction
+    startfrom = 0  # TODO need a way of only getting unprocessed transactions perhaps keeping a start from counter
+    # and processing x per minute
+    number_of_transactions = 30
 
-        transactions = rpcaccess.listtransactions(game.account, 20, 0)
+    transactions = rpcaccess.listtransactions(game.account, number_of_transactions, startfrom)
 
-        for transaction in transactions:
-            amount = transaction['amount']
-            txin_id = transaction['txid']
-            from_address = get_first_input(rpcaccess, txin_id)
-            account = transaction['account']  # TODO seperate by account (maybe function called to process transaction?
+    for transaction in transactions:
+        amount = transaction['amount']
+        txin_id = transaction['txid']
+        from_address = get_first_input(rpcaccess, txin_id)
+        account = transaction['account']  # TODO seperate by account (maybe function called to process transaction?
 
-            if txin_id == '668da09106277019cb33bbd54d9243543cf6d9d6ac62e0677893db29d053f6a4':
-                continue  # skip the seed payment
+        if txin_id == '668da09106277019cb33bbd54d9243543cf6d9d6ac62e0677893db29d053f6a4':
+            continue  # skip the seed payment
 
-            if transaction['category'] == 'receive':
-                print 'skipping send payment'
-                continue  # skip sent payments
+        if transaction['category'] == 'send':
+            print 'skipping send payment'
+            continue  # skip sent payments
 
-            try:  # Check if transaction has been processed before
-                DiceTransactions.select().where(DiceTransactions.txin_id == txin_id or DiceTransactions.txin_out == txin_id).get()  #  .get fetches 1 record
-            except DoesNotExist:
-                print 'new transaction {} NLO ID:{} - processing'.format(amount, txin_id)
+        try:  # Check if transaction has been processed before
+            DiceTransactions.select().where(DiceTransactions.txin_id == txin_id or DiceTransactions.txin_out == txin_id).get()  #  .get fetches 1 record
+        except DoesNotExist:
+            print 'new transaction {} NLO ID:{} - processing'.format(amount, txin_id)
 
-                # check if within game limits
-                upper_limit = 1000
-                lower_limit = 5
+            # check if within game limits
+            upper_limit = 1000
+            lower_limit = 20
 
-                if amount <= lower_limit:  # Consider it a donation
-                    db_transaction = DiceTransactions.create(from_address=from_address, txin_id=txin_id, txin_amount=amount,
-                                                             win=False, txout_id='donation', txout_amount=0, account=account)
-                    db_transaction.save()
-                    print 'Below limit - skipping'
-                    continue
-                elif amount > upper_limit:  # Return minus lower limit fee to stop spamming
-                    txout_amount = amount - lower_limit
-
-                    txout_id = rpcaccess.sendfrom(account, from_address, txout_amount)  # , comment Won or lost
-
-                    db_transaction = DiceTransactions.create(from_address=from_address, txin_id=txin_id, txin_amount=amount,
-                                                             win=False, txout_id=txout_id, txout_amount=txout_amount,
-                                                             account=account)
-                    db_transaction.save()
-                    print 'Above limit - returning minus fee {}'.format(txout_id)
-
-                # Roll Dice
-                rolled = dice.randint(1, 100)
-
-                if rolled <= game.rollodds:
-                    win = True
-                    win_amount = amount * Decimal(game.pay_odds)
-                else:
-                    win = False
-                    win_amount = Decimal('0.0001')  # TODO odds should be set in decimal in config
-
-                print 'odds are {} - rolled {} - result {} - win {} ({} * {})'.format(game.rollodds, rolled, win, win_amount,
-                amount, game.pay_odds)
-
-                # Send transaction
-                txout_id = rpcaccess.sendfrom(account, from_address, win_amount)  # , comment Won or lost
-                print "sending win {}".format(txout_id)
-
-                # Store transaction and game info to DB
+            if amount <= lower_limit:  # Consider it a donation
                 db_transaction = DiceTransactions.create(from_address=from_address, txin_id=txin_id, txin_amount=amount,
-                                                         win=win, txout_id=txout_id, txout_amount=win_amount,
+                                                         win=False, txout_id='donation', txout_amount=0, account=account)
+                db_transaction.save()
+                print 'Below limit - skipping'
+                continue
+            elif amount > upper_limit:  # Return minus lower limit fee to stop spamming
+                txout_amount = amount - lower_limit
+
+                txout_id = rpcaccess.sendfrom(account, from_address, txout_amount)  # , comment Won or lost
+
+                db_transaction = DiceTransactions.create(from_address=from_address, txin_id=txin_id, txin_amount=amount,
+                                                         win=False, txout_id=txout_id, txout_amount=txout_amount,
                                                          account=account)
                 db_transaction.save()
+                print 'Above limit - returning minus fee {}'.format(txout_id)
+
+            # Roll Dice
+            rolled = dice.randint(1, 100)
+
+            if rolled <= game.rollodds:
+                win = True
+                win_amount = amount * Decimal(game.pay_odds)
             else:
-                print 'transaction exists - continuing'
+                win = False
+                win_amount = Decimal('0.0001')  # TODO odds should be set in decimal in config
+
+            print 'odds are {} - rolled {} - result {} - win {} ({} * {})'.format(game.rollodds, rolled, win, win_amount,
+            amount, game.pay_odds)
+
+            # Send transaction
+            txout_id = rpcaccess.sendfrom(account, from_address, win_amount)  # , comment Won or lost
+            print "sending win {}".format(txout_id)
+
+            # Store transaction and game info to DB
+            db_transaction = DiceTransactions.create(from_address=from_address, txin_id=txin_id, txin_amount=amount,
+                                                     win=win, txout_id=txout_id, txout_amount=win_amount,
+                                                     account=account)
+            db_transaction.save()
+        else:
+            print 'transaction exists - continuing'
 finally:
     db.close()
