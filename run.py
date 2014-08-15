@@ -2,9 +2,10 @@
 """
 from config import *
 from peewee import *
+from bitcoinrpc.authproxy import AuthServiceProxy
 
+# Setup The Database and Establish Connection
 db = SqliteDatabase(sqlite_location)
-
 
 class DiceTransactions(Model):
     roll_id = PrimaryKeyField()
@@ -21,9 +22,25 @@ class DiceTransactions(Model):
 if 0:  # on first run create the tables
     db.create_tables([DiceTransactions])
 
-# TODO setup RPC
+    # TODO add if failed to connect statement
+
+# Use RPC to Connect to nlocoind
+rpcaccess = AuthServiceProxy("http://{}:{}@{}:{}".format(rpcuser, rpcpass, rpcip, rpcport))
+print rpcaccess.getinfo()  # test
+
+    # TODO add if failed to connect statement
+
 
 # Per address / odds
+for game in dicegames:
+    number_of_transactions = 20
+    confirmations = 1
+    print game.account, number_of_transactions, confirmations
+
+    print rpcaccess.listreceivedbyaccount(0, True)
+    transactions = rpcaccess.listreceivedbyaccount(game.account, number_of_transactions, confirmations)
+
+    print transactions  # EODN this is failing with JSON error - need to get it to output then parse the JSON
 
 # TODO check transactions (and that none are missed)
 
