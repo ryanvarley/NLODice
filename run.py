@@ -6,9 +6,11 @@ from bitcoinrpc.authproxy import AuthServiceProxy
 import random
 import os.path
 from decimal import Decimal
+from dice_classes import get_first_input
 
 # Setup The Database and Establish Connection
 db = SqliteDatabase(sqlite_location)
+
 
 class DiceTransactions(Model):
     roll_id = PrimaryKeyField()
@@ -47,12 +49,16 @@ try:
 
         for transaction in transactions:
             amount = transaction['amount']
-            from_address = transaction['address']
             txin_id = transaction['txid']
+            from_address = get_first_input(rpcaccess, txin_id)
             account = transaction['account']  # TODO seperate by account (maybe function called to process transaction?
 
             if txin_id == '668da09106277019cb33bbd54d9243543cf6d9d6ac62e0677893db29d053f6a4':
                 continue  # skip the seed payment
+
+            if transaction['category'] == 'receive':
+                print 'skipping send payment'
+                continue  # skip sent payments
 
             try:  # Check if transaction has been processed before
                 DiceTransactions.select().where(DiceTransactions.txin_id == txin_id or DiceTransactions.txin_out == txin_id).get()  #  .get fetches 1 record

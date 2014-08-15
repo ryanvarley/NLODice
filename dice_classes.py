@@ -14,3 +14,18 @@ class DiceGame(object):
         self.rollodds = (100. / pay_odds) - house_edge
         self.receive_address = receive_address
         self.payout_account = payout_account
+
+
+def get_first_input(rpcaccess, txid):
+    """ Turns a TXID into the first input address which is normally but not always controlled by the sender
+
+    :param rpcaccess:
+    :param txid:
+    :return:
+    """
+    def raw(tx):
+        return rpcaccess.decoderawtransaction(rpcaccess.getrawtransaction(tx))
+
+    first_input = raw(txid)['vin'][0]
+
+    return raw(first_input['txid'])['vout'][first_input['vout']]['scriptPubKey']['addresses'][0]
