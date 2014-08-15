@@ -25,9 +25,22 @@ class DiceTransactions(Model):
     class Meta:
         database = db  # This model uses the "people.db" database.
 
+
+class MetaOptions(Model):
+    meta_id = PrimaryKeyField()
+    option = CharField(20)
+    value = CharField(150)
+
+    class Meta:
+        database = db  # This model uses the "people.db" database.
+
 try:
     if not os.path.exists(sqlite_location):  # on first run create the tables
-        db.create_tables([DiceTransactions])
+        db.create_tables([DiceTransactions, MetaOptions])
+        lasttnum = MetaOptions(option='lasttnum', value='0')
+        lasttnum.save()
+    else:
+        lasttnum = MetaOptions.select().where(MetaOptions.option == 'lasttnum').get()
 
         # TODO add if failed to connect statement
 
@@ -41,9 +54,9 @@ try:
 
     # Per address / odds
     game = dicegames[0]  # needs to be replaced by changing game per transaction
-    startfrom = 0  # TODO need a way of only getting unprocessed transactions perhaps keeping a start from counter
+    startfrom = int(lasttnum.value)
     # and processing x per minute
-    number_of_transactions = 30
+    number_of_transactions = 16
 
     transactions = rpcaccess.listtransactions(game.account, number_of_transactions, startfrom)
 
@@ -54,10 +67,14 @@ try:
         account = transaction['account']  # TODO seperate by account (maybe function called to process transaction?
 
         if txin_id == '668da09106277019cb33bbd54d9243543cf6d9d6ac62e0677893db29d053f6a4':
+            lasttnum.value = int(lasttnum.value) + 1
+            lasttnum.save()
             continue  # skip the seed payment
 
         if transaction['category'] == 'send':
             print 'skipping send payment'
+            lasttnum.value = int(lasttnum.value) + 1
+            lasttnum.save()
             continue  # skip sent payments
 
         try:  # Check if transaction has been processed before
@@ -110,5 +127,8 @@ try:
             db_transaction.save()
         else:
             print 'transaction exists - continuing'
+        finally:
+            lasttnum.value = int(lasttnum.value) + 1
 finally:
     db.close()
+    print('finished')
