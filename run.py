@@ -55,9 +55,6 @@ try:
     # Per address / odds
     game = dicegames[0]  # needs to be replaced by changing game per transaction
     startfrom = int(lasttnum.value)
-    # and processing x per minute
-    number_of_transactions = 16
-
     transactions = rpcaccess.listtransactions(game.account, number_of_transactions, startfrom)
 
     for transaction in transactions:
