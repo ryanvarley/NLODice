@@ -77,6 +77,7 @@ try:
             continue  # skip the seed payment
 
         if transaction['category'] == 'send':
+            logger.info(transaction['category'], txin_id)
             logger.info('skipping sent payment')
             lasttnum.value = int(lasttnum.value) + 1
             lasttnum.save()
@@ -84,14 +85,15 @@ try:
 
         try:  # Check if transaction has been processed before
             DiceTransactions.select().where(DiceTransactions.txin_id == txin_id or DiceTransactions.txin_out == txin_id).get()  #  .get fetches 1 record
-        except DoesNotExist:
+        except DoesNotExist as e:
+            print e
             logger.info('new transaction {} NLO ID:{} - processing'.format(amount, txin_id))
 
             # check if within game limits
             upper_limit = game.upperlimit
             lower_limit = game.lowerlimit
 
-            if amount <= lower_limit:  # Consider it a donation
+            if amount < lower_limit:  # Consider it a donation
                 db_transaction = DiceTransactions.create(from_address=from_address, txin_id=txin_id, txin_amount=amount,
                                                          win=False, txout_id='donation', txout_amount=0, account=account)
                 db_transaction.save()
