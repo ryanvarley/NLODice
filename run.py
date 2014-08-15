@@ -51,21 +51,34 @@ try:
             txin_id = transaction['txid']
             account = transaction['account']  # TODO seperate by account (maybe function called to process transaction?
 
-            if txin_id == '37bb5eb3140f1b7f41546f73fbe03fcdf0ed016050a235968cb99d046d9a4134':
+            if txin_id == '668da09106277019cb33bbd54d9243543cf6d9d6ac62e0677893db29d053f6a4':
                 continue  # skip the seed payment
 
-            # TODO check if within game limits
-            upper_limit = 1000
-            lower_limit = 5
-
-            if lower_limit <= amount:  # Consider it a donation
-
-            elif amount <= upper_limit:
-
             try:  # Check if transaction has been processed before
-                DiceTransactions.select().where(DiceTransactions.txin_id == txin_id).get()  #  .get fetches 1 record
+                DiceTransactions.select().where(DiceTransactions.txin_id == txin_id or DiceTransactions.txin_out == txin_id).get()  #  .get fetches 1 record
             except DoesNotExist:
-                print 'new transaction {} - processing'.format(txin_id)
+                print 'new transaction {} NLO ID:{} - processing'.format(amount, txin_id)
+
+                # check if within game limits
+                upper_limit = 1000
+                lower_limit = 5
+
+                if amount <= lower_limit:  # Consider it a donation
+                    db_transaction = DiceTransactions.create(from_address=from_address, txin_id=txin_id, txin_amount=amount,
+                                                             win=False, txout_id='donation', txout_amount=0, account=account)
+                    db_transaction.save()
+                    print 'Below limit - skipping'
+                    continue
+                elif amount > upper_limit:  # Return minus lower limit fee to stop spamming
+                    txout_amount = amount - lower_limit
+
+                    txout_id = rpcaccess.sendfrom(account, from_address, txout_amount)  # , comment Won or lost
+
+                    db_transaction = DiceTransactions.create(from_address=from_address, txin_id=txin_id, txin_amount=amount,
+                                                             win=False, txout_id=txout_id, txout_amount=txout_amount,
+                                                             account=account)
+                    db_transaction.save()
+                    print 'Above limit - returning minus fee {}'.format(txout_id)
 
                 # Roll Dice
                 rolled = dice.randint(1, 100)
@@ -81,11 +94,10 @@ try:
                 amount, game.pay_odds)
 
                 # Send transaction
-                txout_raw = rpcaccess.sendfrom(account, from_address, win_amount, 1)  # , comment Won or lost
-                print txout_raw
+                txout_id = rpcaccess.sendfrom(account, from_address, win_amount)  # , comment Won or lost
+                print "sending win {}".format(txout_id)
 
                 # Store transaction and game info to DB
-                txout_id = '189d86539b552541b1550d5ed4bec85cba066e34caf7e930b4cda3081bd04c42'
                 db_transaction = DiceTransactions.create(from_address=from_address, txin_id=txin_id, txin_amount=amount,
                                                          win=win, txout_id=txout_id, txout_amount=win_amount,
                                                          account=account)
