@@ -69,7 +69,7 @@ try:
             continue  # skip the seed payment
 
         if transaction['category'] == 'send':
-            print 'skipping send payment'
+            print 'skipping sent payment'
             lasttnum.value = int(lasttnum.value) + 1
             lasttnum.save()
             continue  # skip sent payments
