@@ -65,7 +65,7 @@ try:
     transactions = rpcaccess.listtransactions(game.account, number_of_transactions, startfrom)
 
     for transaction in transactions:
-        if transaction["confirmations"] == 0:
+        if transaction["confirmations"] == "0":
             logger.info('0 confs, breaking')  # TODO look at
             break
 
