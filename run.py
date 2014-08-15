@@ -83,8 +83,8 @@ try:
             print 'new transaction {} NLO ID:{} - processing'.format(amount, txin_id)
 
             # check if within game limits
-            upper_limit = 1000
-            lower_limit = 20
+            upper_limit = game.upperlimit
+            lower_limit = game.lowerlimit
 
             if amount <= lower_limit:  # Consider it a donation
                 db_transaction = DiceTransactions.create(from_address=from_address, txin_id=txin_id, txin_amount=amount,
