@@ -11,5 +11,5 @@ class DiceGame(object):
         self.payodds = float(payodds)
         self.house_edge = float(house_edge)
 
-        self.rollodds = (1. / payodds) - (house_edge/100.)
+        self.rollodds = (100. / payodds) - house_edge
         self.receive_address = receive_address
