@@ -77,8 +77,7 @@ try:
             continue  # skip the seed payment
 
         if transaction['category'] == 'send':
-            logger.info(transaction['category'], txin_id)
-            logger.info('skipping sent payment')
+            logger.info('skipping sent payment {} {}'.format(transaction['category'], txin_id))
             lasttnum.value = int(lasttnum.value) + 1
             lasttnum.save()
             continue  # skip sent payments
