@@ -65,6 +65,10 @@ try:
     transactions = rpcaccess.listtransactions(game.account, number_of_transactions, startfrom)
 
     for transaction in transactions:
+        if transaction["confirmations"] == 0:
+            logger.info('0 confs, breaking')  # TODO look at
+            break
+
         amount = transaction['amount']
         txin_id = transaction['txid']
         from_address = get_first_input(rpcaccess, txin_id)
