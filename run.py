@@ -7,10 +7,17 @@ import random
 import os.path
 from decimal import Decimal
 from dice_classes import get_first_input
+import logging
+
+logger = logging.getLogger('nlodice')
+hdlr = logging.FileHandler(logfile_location)
+formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+hdlr.setFormatter(formatter)
+logger.addHandler(hdlr)
+logger.setLevel(logging.INFO)
 
 # Setup The Database and Establish Connection
 db = SqliteDatabase(sqlite_location)
-
 
 class DiceTransactions(Model):
     roll_id = PrimaryKeyField()
@@ -63,13 +70,14 @@ try:
         from_address = get_first_input(rpcaccess, txin_id)
         account = transaction['account']  # TODO seperate by account (maybe function called to process transaction?
 
-        if txin_id == '668da09106277019cb33bbd54d9243543cf6d9d6ac62e0677893db29d053f6a4':
+        if txin_id == seed_txid:
             lasttnum.value = int(lasttnum.value) + 1
             lasttnum.save()
+            logger.info('skipping seed payment')
             continue  # skip the seed payment
 
         if transaction['category'] == 'send':
-            print 'skipping sent payment'
+            logger.info('skipping sent payment')
             lasttnum.value = int(lasttnum.value) + 1
             lasttnum.save()
             continue  # skip sent payments
@@ -77,7 +85,7 @@ try:
         try:  # Check if transaction has been processed before
             DiceTransactions.select().where(DiceTransactions.txin_id == txin_id or DiceTransactions.txin_out == txin_id).get()  #  .get fetches 1 record
         except DoesNotExist:
-            print 'new transaction {} NLO ID:{} - processing'.format(amount, txin_id)
+            logger.info('new transaction {} NLO ID:{} - processing'.format(amount, txin_id))
 
             # check if within game limits
             upper_limit = game.upperlimit
@@ -87,7 +95,7 @@ try:
                 db_transaction = DiceTransactions.create(from_address=from_address, txin_id=txin_id, txin_amount=amount,
                                                          win=False, txout_id='donation', txout_amount=0, account=account)
                 db_transaction.save()
-                print 'Below limit - skipping'
+                logger.info('Below limit - skipping')
                 continue
             elif amount > upper_limit:  # Return minus lower limit fee to stop spamming
                 txout_amount = amount - lower_limit
@@ -98,7 +106,7 @@ try:
                                                          win=False, txout_id=txout_id, txout_amount=txout_amount,
                                                          account=account)
                 db_transaction.save()
-                print 'Above limit - returning minus fee {}'.format(txout_id)
+                logger.info('Above limit - returning minus fee {}'.format(txout_id))
 
             # Roll Dice
             rolled = dice.randint(1, 100)
@@ -110,12 +118,12 @@ try:
                 win = False
                 win_amount = Decimal('0.0001')  # TODO odds should be set in decimal in config
 
-            print 'odds are {} - rolled {} - result {} - win {} ({} * {})'.format(game.rollodds, rolled, win, win_amount,
-            amount, game.pay_odds)
+            logger.info('odds are {} - rolled {} - result {} - win {} ({} * {})'.format(game.rollodds, rolled, win, win_amount,
+            amount, game.pay_odds))
 
             # Send transaction
             txout_id = rpcaccess.sendfrom(account, from_address, win_amount)  # , comment Won or lost
-            print "sending win {}".format(txout_id)
+            logger.info("sending win {}".format(txout_id))
 
             # Store transaction and game info to DB
             db_transaction = DiceTransactions.create(from_address=from_address, txin_id=txin_id, txin_amount=amount,
@@ -123,9 +131,9 @@ try:
                                                      account=account)
             db_transaction.save()
         else:
-            print 'transaction exists - continuing'
+            logger.info('transaction exists - continuing')
         finally:
             lasttnum.value = int(lasttnum.value) + 1
 finally:
     db.close()
-    print('finished')
+    logger.info('finished')
