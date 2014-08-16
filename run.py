@@ -70,19 +70,19 @@ try:
         from_address = get_first_input(rpcaccess, txin_id)
         account = transaction['account']  # TODO seperate by account (maybe function called to process transaction?
 
+        logger.info('transaction {} NLO, ID:{} - processing'.format(amount, txin_id))
+
         if not account == game.account:  # check sent to correct address
             lasttnum.value = int(lasttnum.value) + 1
             lasttnum.save()
             logger.info('skipping transaction to wrong account')  # failsafe, should be handled by transaction checking
             continue
-
-        if txin_id in seed_txid:
+        elif txin_id in seed_txid:
             lasttnum.value = int(lasttnum.value) + 1
             lasttnum.save()
             logger.info('skipping seed payment')
             continue
-
-        if transaction['category'] == 'send':
+        elif transaction['category'] == 'send':
             lasttnum.value = int(lasttnum.value) + 1
             lasttnum.save()
             logger.info('skipping sent payment {} {}'.format(transaction['category'], txin_id))
@@ -92,7 +92,7 @@ try:
             DiceTransactions.select().where(DiceTransactions.txin_id == txin_id or DiceTransactions.txin_out == txin_id).get()  #  .get fetches 1 record
         except DoesNotExist as e:
             print e
-            logger.info('new transaction {} NLO ID:{} - processing'.format(amount, txin_id))
+            logger.info('Not in database - processing')
 
             # check if within game limits
             upper_limit = game.upperlimit
