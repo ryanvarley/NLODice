@@ -44,7 +44,7 @@ class MetaOptions(Model):
 try:
     if not os.path.exists(sqlite_location):  # on first run create the tables
         db.create_tables([DiceTransactions, MetaOptions])
-        lasttnum = MetaOptions(option='lasttnum', value='0')
+        lasttnum = MetaOptions(option='lasttnum', value='1')
         lasttnum.save()
     else:
         lasttnum = MetaOptions.select().where(MetaOptions.option == 'lasttnum').get()
@@ -70,17 +70,23 @@ try:
         from_address = get_first_input(rpcaccess, txin_id)
         account = transaction['account']  # TODO seperate by account (maybe function called to process transaction?
 
+        if not account == game.account:  # check sent to correct address
+            lasttnum.value = int(lasttnum.value) + 1
+            lasttnum.save()
+            logger.info('skipping transaction to wrong account')  # failsafe, should be handled by transaction checking
+            continue
+
         if txin_id in seed_txid:
             lasttnum.value = int(lasttnum.value) + 1
             lasttnum.save()
             logger.info('skipping seed payment')
-            continue  # skip the seed payment
+            continue
 
         if transaction['category'] == 'send':
-            logger.info('skipping sent payment {} {}'.format(transaction['category'], txin_id))
             lasttnum.value = int(lasttnum.value) + 1
             lasttnum.save()
-            continue  # skip sent payments
+            logger.info('skipping sent payment {} {}'.format(transaction['category'], txin_id))
+            continue
 
         try:  # Check if transaction has been processed before
             DiceTransactions.select().where(DiceTransactions.txin_id == txin_id or DiceTransactions.txin_out == txin_id).get()  #  .get fetches 1 record
