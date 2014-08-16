@@ -61,7 +61,8 @@ try:
 
     # Per address / odds
     game = dicegames[0]  # needs to be replaced by changing game per transaction
-    startfrom = int(lasttnum.value)
+    # startfrom = int(lasttnum.value)
+    startfrom = 0  # TODO seems to work the wrong way round ie starting from 16 with 17 transactions returns the first!
     transactions = rpcaccess.listtransactions(game.account, number_of_transactions, startfrom)
 
     logger.info('fetched {} transactions starting at {} fetching {} max - processing'.format(len(transactions),
