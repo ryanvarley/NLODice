@@ -64,7 +64,8 @@ try:
     startfrom = int(lasttnum.value)
     transactions = rpcaccess.listtransactions(game.account, number_of_transactions, startfrom)
 
-    logger.info('fetched {} transactions - processing'.format(len(transactions)))
+    logger.info('fetched {} transactions starting at {} fetching {} max - processing'.format(len(transactions),
+                                                                                startfrom, number_of_transactions))
 
     for transaction in transactions:
         amount = transaction['amount']
