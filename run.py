@@ -91,7 +91,6 @@ try:
         try:  # Check if transaction has been processed before
             DiceTransactions.select().where(DiceTransactions.txin_id == txin_id or DiceTransactions.txin_out == txin_id).get()  #  .get fetches 1 record
         except DoesNotExist as e:
-            print e
             logger.info('Not in database - processing')
 
             # check if within game limits
