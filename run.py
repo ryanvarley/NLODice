@@ -70,7 +70,7 @@ try:
         from_address = get_first_input(rpcaccess, txin_id)
         account = transaction['account']  # TODO seperate by account (maybe function called to process transaction?
 
-        if txin_id == seed_txid:
+        if txin_id in seed_txid:
             lasttnum.value = int(lasttnum.value) + 1
             lasttnum.save()
             logger.info('skipping seed payment')
