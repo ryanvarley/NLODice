@@ -64,6 +64,8 @@ try:
     startfrom = int(lasttnum.value)
     transactions = rpcaccess.listtransactions(game.account, number_of_transactions, startfrom)
 
+    logger.info('fetched {} transactions - processing'.format(len(transactions)))
+
     for transaction in transactions:
         amount = transaction['amount']
         txin_id = transaction['txid']
@@ -100,7 +102,6 @@ try:
             if amount < lower_limit:  # Consider it a donation
                 db_transaction = DiceTransactions.create(from_address=from_address, txin_id=txin_id, txin_amount=amount,
                                                          win=False, txout_id='donation', txout_amount=0, account=account)
-                db_transaction.save()
                 logger.info('Below limit - skipping')
                 continue
             elif amount > upper_limit:  # Return minus lower limit fee to stop spamming
@@ -111,10 +112,11 @@ try:
                 db_transaction = DiceTransactions.create(from_address=from_address, txin_id=txin_id, txin_amount=amount,
                                                          win=False, txout_id=txout_id, txout_amount=txout_amount,
                                                          account=account)
-                db_transaction.save()
                 logger.info('Above limit - returning minus fee {}'.format(txout_id))
+                continue
 
-            # Roll Dice
+
+            logger.info('Within limits - rolling')
             rolled = dice.randint(1, 100)
 
             if rolled <= game.rollodds:
