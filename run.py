@@ -60,90 +60,90 @@ try:
     dice = random.SystemRandom()
 
     # Per address / odds
-    game = dicegames[0]  # needs to be replaced by changing game per transaction
-    # startfrom = int(lasttnum.value)
-    startfrom = 0  # TODO seems to work the wrong way round ie starting from 16 with 17 transactions returns the first!
-    transactions = rpcaccess.listtransactions(game.account, number_of_transactions, startfrom)
+    for game in dicegames:  # needs to be replaced by changing game per transaction
+        # startfrom = int(lasttnum.value)
+        startfrom = 0  # TODO seems to work the wrong way round ie starting from 16 with 17 transactions returns the first!
+        transactions = rpcaccess.listtransactions(game.account, number_of_transactions)
 
-    logger.info('fetched {} transactions starting at {} fetching {} max - processing'.format(len(transactions),
-                                                                                startfrom, number_of_transactions))
+        logger.info('fetched {} transactions starting at {} fetching {} max - processing'.format(len(transactions),
+                                                                                    startfrom, number_of_transactions))
 
-    for transaction in transactions:
-        amount = transaction['amount']
-        txin_id = transaction['txid']
-        from_address = get_first_input(rpcaccess, txin_id)
-        account = transaction['account']  # TODO seperate by account (maybe function called to process transaction?
+        for transaction in transactions:
+            amount = transaction['amount']
+            txin_id = transaction['txid']
+            from_address = get_first_input(rpcaccess, txin_id)
+            account = transaction['account']  # TODO seperate by account (maybe function called to process transaction?
 
-        logger.info('transaction {} NLO, ID:{} - processing'.format(amount, txin_id))
+            logger.info('transaction {} NLO, ID:{} - processing'.format(amount, txin_id))
 
-        if not account == game.account:  # check sent to correct address
-            lasttnum.value = int(lasttnum.value) + 1
-            lasttnum.save()
-            logger.info('skipping transaction to wrong account')  # failsafe, should be handled by transaction checking
-            continue
-        elif txin_id in seed_txid:
-            lasttnum.value = int(lasttnum.value) + 1
-            lasttnum.save()
-            logger.info('skipping seed payment')
-            continue
-        elif transaction['category'] == 'send':
-            lasttnum.value = int(lasttnum.value) + 1
-            lasttnum.save()
-            logger.info('skipping sent payment {} {}'.format(transaction['category'], txin_id))
-            continue
-
-        try:  # Check if transaction has been processed before
-            DiceTransactions.select().where(DiceTransactions.txin_id == txin_id or DiceTransactions.txin_out == txin_id).get()  #  .get fetches 1 record
-        except DoesNotExist as e:
-            logger.info('Not in database - processing')
-
-            # check if within game limits
-            upper_limit = game.upperlimit
-            lower_limit = game.lowerlimit
-
-            if amount < lower_limit:  # Consider it a donation
-                db_transaction = DiceTransactions.create(from_address=from_address, txin_id=txin_id, txin_amount=amount,
-                                                         win=False, txout_id='donation', txout_amount=0, account=account)
-                logger.info('Below limit - skipping')
+            if not account == game.account:  # check sent to correct address
+                lasttnum.value = int(lasttnum.value) + 1
+                lasttnum.save()
+                logger.info('skipping transaction to wrong account')  # failsafe, should be handled by transaction checking
                 continue
-            elif amount > upper_limit:  # Return minus lower limit fee to stop spamming
-                txout_amount = amount - lower_limit
+            elif txin_id in seed_txid:
+                lasttnum.value = int(lasttnum.value) + 1
+                lasttnum.save()
+                logger.info('skipping seed payment')
+                continue
+            elif transaction['category'] == 'send':
+                lasttnum.value = int(lasttnum.value) + 1
+                lasttnum.save()
+                logger.info('skipping sent payment {} {}'.format(transaction['category'], txin_id))
+                continue
 
-                txout_id = rpcaccess.sendfrom(account, from_address, txout_amount)  # , comment Won or lost
+            try:  # Check if transaction has been processed before
+                DiceTransactions.select().where(DiceTransactions.txin_id == txin_id or DiceTransactions.txin_out == txin_id).get()  #  .get fetches 1 record
+            except DoesNotExist as e:
+                logger.info('Not in database - processing')
 
+                # check if within game limits
+                upper_limit = game.upperlimit
+                lower_limit = game.lowerlimit
+
+                if amount < lower_limit:  # Consider it a donation
+                    db_transaction = DiceTransactions.create(from_address=from_address, txin_id=txin_id, txin_amount=amount,
+                                                             win=False, txout_id='donation', txout_amount=0, account=account)
+                    logger.info('Below limit - skipping')
+                    continue
+                elif amount > upper_limit:  # Return minus lower limit fee to stop spamming
+                    txout_amount = amount - lower_limit
+
+                    txout_id = rpcaccess.sendfrom(account, from_address, txout_amount)  # , comment Won or lost
+
+                    db_transaction = DiceTransactions.create(from_address=from_address, txin_id=txin_id, txin_amount=amount,
+                                                             win=False, txout_id=txout_id, txout_amount=txout_amount,
+                                                             account=account)
+                    logger.info('Above limit - returning minus fee {}'.format(txout_id))
+                    continue
+
+
+                logger.info('Within limits - rolling')
+                rolled = dice.randint(1, 100)
+
+                if rolled <= game.rollodds:
+                    win = True
+                    win_amount = amount * Decimal(game.pay_odds)
+                else:
+                    win = False
+                    win_amount = Decimal('0.0001')  # TODO odds should be set in decimal in config
+
+                logger.info('odds are {} - rolled {} - result {} - win {} ({} * {})'.format(game.rollodds, rolled, win, win_amount,
+                amount, game.pay_odds))
+
+                # Send transaction
+                txout_id = rpcaccess.sendfrom(account, from_address, win_amount)  # , comment Won or lost
+                logger.info("sending win {}".format(txout_id))
+
+                # Store transaction and game info to DB
                 db_transaction = DiceTransactions.create(from_address=from_address, txin_id=txin_id, txin_amount=amount,
-                                                         win=False, txout_id=txout_id, txout_amount=txout_amount,
+                                                         win=win, txout_id=txout_id, txout_amount=win_amount,
                                                          account=account)
-                logger.info('Above limit - returning minus fee {}'.format(txout_id))
-                continue
-
-
-            logger.info('Within limits - rolling')
-            rolled = dice.randint(1, 100)
-
-            if rolled <= game.rollodds:
-                win = True
-                win_amount = amount * Decimal(game.pay_odds)
+                db_transaction.save()
             else:
-                win = False
-                win_amount = Decimal('0.0001')  # TODO odds should be set in decimal in config
-
-            logger.info('odds are {} - rolled {} - result {} - win {} ({} * {})'.format(game.rollodds, rolled, win, win_amount,
-            amount, game.pay_odds))
-
-            # Send transaction
-            txout_id = rpcaccess.sendfrom(account, from_address, win_amount)  # , comment Won or lost
-            logger.info("sending win {}".format(txout_id))
-
-            # Store transaction and game info to DB
-            db_transaction = DiceTransactions.create(from_address=from_address, txin_id=txin_id, txin_amount=amount,
-                                                     win=win, txout_id=txout_id, txout_amount=win_amount,
-                                                     account=account)
-            db_transaction.save()
-        else:
-            logger.info('transaction exists - continuing')
-        finally:
-            lasttnum.value = int(lasttnum.value) + 1
+                logger.info('transaction exists - continuing')
+            finally:
+                lasttnum.value = int(lasttnum.value) + 1
 finally:
     db.close()
     logger.info('finished')
