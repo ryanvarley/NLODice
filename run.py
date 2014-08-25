@@ -69,6 +69,9 @@ try:
                                                                                     startfrom, number_of_transactions))
 
         for transaction in transactions:
+            cat = transaction['category']
+            if cat == 'move':
+                continue  # skip a move transaction which has no txid, useful for seeds and taking profit
             amount = transaction['amount']
             txin_id = transaction['txid']
             from_address = get_first_input(rpcaccess, txin_id)
